@@ -1,0 +1,8 @@
+java数据结构
+
+HashMap:
+    HashMap的工作原理是什么？
+    HashMap中的“死锁”是怎么回事？
+    HashMap中能put两个相同key吗？为什么？
+    HashMap中的键值可以为null吗？原理？
+    HashMap扩容机制？

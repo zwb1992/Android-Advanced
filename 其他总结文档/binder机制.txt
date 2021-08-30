@@ -1,0 +1,9 @@
+1.binder是什么？
+    1.直观来说binder是一个类，集成IBinder接口
+    2.从IPC角度来说，binder是一种跨进程的通讯方式，物理层是驱动
+    3.从Android Framework层来讲，binder是ServeiceMnaager，连接各种Manager（ActivityManager WindowManager等）
+    4.从应用层来说，binger是连接client和service的桥梁
+
+2.binder相对传统跨进程方式的优点有哪些？
+    1.性能方面：传统跨进程方式：管道 socket 文件    管道 socket 需要两次拷贝  文件不需要拷贝，但是同步起来实现困难  binder仅需一次拷贝
+    2.安全方面：socket依赖ip可能存在造假情况  而binder会对用户身份进行校验 uid/pid 更加安全

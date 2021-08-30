@@ -1,0 +1,24 @@
+app的打包流程
+
+先说一个apk的组成
+1，res目录，存放资源文件，所有文件映射在R类资源id常量中，在代码中通过id直接访问。
+2，lib目录，C++库，so文件，根据Cpu架构区分文件夹，如arm-v7，x86，mips，不同目标设备根据当前架构加载对应目录下so文件。
+3，classes.dex文件，由class字节码文件通过dx工具转化，Dalvik虚拟机识别的执行文件。
+4，assets目录，存放任何文件或文件夹，一般存放WebView相关资源。
+和res目录的区别：不会在R类中映射资源id，在代码中通过AssetManager类访问，其他资源，包括raw资源，都会生成资源id。
+5，AndroidMainfest文件，应用配置，向Android系统注册该应用信息，四大组件，权限声明。
+6，resources.arsc文件，记录资源文件和资源id的映射关系，在代码中通过R类的资源id查找资源，运行时，需要根据id找到资源的路径。
+7，META-INF目录，签名和校验，验证Apk文件完整性，打包时，会计算内部所有文件摘要签名，保存在该目录下，安装时，
+    根据该目录的相关文件校验完整性，确保Apk每个文件不被篡改，是官方正版Apk。
+
+
+1.aapt(资源打包工具)生成R.java，res文件和resource.arsc文件
+2.aidl工具处理aidl文件生成java文件
+3.javac工具编译所有java文件，包括R文件，aidl生成的java文件，java源文件和第三方java文件，生成class文件。
+4.dx工具对class文件进行处理，生成Delvik虚拟机可执行的classes.dex文件，分包会生成多个class.dex文件
+5.apkbuilder 将resources.ap_文件，assets文件，dex文件以及第三方的.so文件合并生成未签名的apk
+6.jarsigner工具对apk进行签名，生成签名后的apk包，debug会使用默认的签名
+7.zipalign对未压缩的数据，如图片，按4字节边界进行对齐，对齐后可以向读内存一样对普通文件操作，加快资源访问速度。
+
+
+参考：https://www.jianshu.com/p/4b8206262991

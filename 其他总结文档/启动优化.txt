@@ -1,0 +1,51 @@
+启动优化
+
+应用启动流程（冷启动）
+    1.Launcher startActivity
+    2.AMS startActivity
+    3.Zygote fork 进程
+    4.ActivityThread main()
+        4.1.  ActivityThread attach
+        4.2. handleBindApplication  
+        4.3  attachBaseContext
+        4.4. installContentProviders
+        4.5. Application onCreate
+    5.ActivityThread 进入loop循环
+    6.Activity生命周期回调，onCreate、onStart、onResume...
+
+我们能做的优化一般就是4.3 4.5 6的环节
+
+一.视觉优化
+    设置windowBackGround为splash界面的背景，让应用看起来像是秒开
+
+二.布局优化
+    合理的布局，减少布局的层次，利用viewstub替代启动过程中不需要显示的控件
+
+三.延迟加载
+    在application启动的时候，适当延迟加载一些非即时使用的库，对应非必要的库，可以在使用的时候再初始化
+
+四.MultiDex优化 
+    1.首先在java中一个类想要能够访问，必须通过classLoader加载过才行，在android上面，类都是通过PathClassLoader加载的，而类是依附dex文件而存在的，所以必须要加载dex文件。
+
+    2.在android4.4以前 使用的是dalvik虚拟机 它正常情况下可以执行一个被opt优化过的dex，dexopt进行优化时，会对每一个类的方法id进行检索，保存在一个链表里面，
+        但这个链表的长度使用一个short类型来保存的，所以导致了一个dex方法数不能超过65536个（也称65k限制），由Dexopt 的 LinearAlloc分配内存。当方法数过多，
+        一个dex满足不了的时候，就需要使用MultiDex进行分包处理。
+
+    3.MultiDex进行分包处理之后，会得到class.dex class1.dex classN.dex的包.而在android的时候，class.dex会自动被opt优化生成odex，所以class.dex自动就能够被执行，
+        我们需要关注的class1.dex以及其他的classN.dex文件，这些文件我们统称为Secondary DEX 文件。当系统不执行自动加载Secondary DEX 文件时，就需要我们手动将这些
+        Secondary DEX 文件进行opt优化并加载到classloader里面，这样我们才能访问这些类，否则会抛出ClassNotFound异常导致程序奔溃。
+
+    4.google为我们提供了MultiDex 方案，在Application.attachBaseContext里面直接调MultiDex.install，它会解开 APK 包，对第二个以后的 DEX 文件做 ODEX 优化并加载。
+        这样，带有多个 DEX 文件的 APK 就可以顺利执行下去了。这个操作会在 APP 安装或者更新后首次冷启动的时候发生，正是由于这个过程耗时漫长，才导致了我们耗时黑屏问题。
+
+    5.字节BoostMultiDex 方案，使得跳过了对Secondary DEX 文件优化的时间，看起来dalvik直接执行了dex文件 大大缩短启动时长。
+
+五：class文件重排序
+    利用facebook的redex或类似的工具，对.class文件进行重新排列， Linux 底层文件系统中 VFS 上次 App 进程之间，存在一层 pagecache，利用这个机制和文件的重排可以减少app执行IO的次数，
+    达到启动优化的效果
+
+六.减少cpu竞争
+    启动过程中，减少线程的调度，减少进程的启动等行为，可以减少cpu的竞争，是启动速度更快
+
+七.检测工具
+    利用systrace监控启动过程中的性能问题

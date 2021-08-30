@@ -1,0 +1,65 @@
+view的绘制流程：
+一：view的绘制主要包含三个重要的步骤(一般自定义view都需要重写)：onMeasure() onLayout() onDraw()
+    measure() 测量：根据xml中的设置或者代码的设置确定每一个view和viewGrounp的尺寸，并将它们记录下来
+    layout() 布局：使用测量得到的每一个view的尺寸已经其他参数，来确定它们具体的位置
+    draw() 绘制：在确定位置之后，对view进行绘制 绘制背景 内容 滚动条等
+
+二：Android的视图层次结构
+    1.Activity包含PhoneWindow,PhoneWindow包含一个最顶层的view
+    2.顶层view是DecorView 是一个FrameLayout
+    3.DecorView中包含三个view
+        第一个view:是一个LinearLayout，LinearLayout是垂直方向 包含了一个Title和content，title就是titleBar actionBar的部分 ，conten就是setContentView（）的内容
+        第二个view:是底部导航栏背景
+        第三个view：是顶部状态栏背景
+
+三：view的渲染，是从activity的启动流程开始的：在activityThread中，当执行到handleLaunchActivity的时候，会先执行WindowManagerGlobal.initialize()内部生成一个WindowManagerService代理对象，类型为IWindowManager
+    接着执行performLaunchActivity() 内部创建Activity，调用activity的attach方法，内部生成一个phoneWindow，并给他设置一个windowManager的实例windowManagerImpl，这样activity，phoneWindow和windowManager就关联起来的。
+    接着执行handleResumeActivity()的时候，会调用windowManager.addView（）方法，将decorView（最顶层的view）添加进去，实际调用的是WindowManagerGlobal.addView（）方法
+    在WindowManagerGlobal.addView（）方法之中，会生成一个ViewRootImpl对象，并调用它的setView（）方法添加view
+    在ViewRootImpl中，会执行requestLayout(),内部首先会checkThread()，判断初始化线程与当前线程是否一致，接着scheduleTraversals()->doTraversal()->performTraversals()->依次调用perfromMeasure(),performLayout(),performDraw()
+        perfromMeasure()：从根节点向下遍历View树，完成所有ViewGroup和View的测量工作，计算出所有ViewGroup和View显示出来需要的高度和宽度；
+        performLayout()：从根节点向下遍历View树，完成所有ViewGroup和View的布局计算工作，根据测量出来的宽高及自身属性，计算出所有ViewGroup和View显示在屏幕上的区域；
+        perfromDraw():从根节点向下遍历View树，完成所有ViewGroup和View的绘制工作，根据布局过程计算出的显示区域，将所有View的当前需显示的内容画到屏幕上。
+    完成上面步骤之后，使用WindowMnagerGloable中WindowManagerService代理对象，得到一个IWindowSession对象，通过调用它的addToDisplay（）方法，把在ViewRootImpl中生成的一个IWindow对象以及其他的属性传递给WindowMnagerService，
+    由它去进行绘制，这是一次IPC过程。之后就是WindowMnagerService端做的事情了，生成SufaceFlinger，把视图刷新到FrameBuffer当中，这样用户就可以看到界面的。
+        
+    perfromMeasure()：包含两个重要的类MeasureSpec和ViewGroup.LayoutParams
+        1.MeasureSpec代表从父布局传递给子view的测量规格，包含了测量模式和测量大小，有int长度为32的值代表 高2位代表mode 低30位代表size
+        有三种可能的mode：UNSPECIFIED、EXACTLY、AT_MOST
+        UNSPECIFIED：任意大小模式，想要多大就多大，一般系统中才会存在
+        EXACTLY：精确大小模式，父布局决定了子view的大小边界，子view最大不会超过这个值
+        AT_MOST：最大值模式，子view可以一直大到和父布局的大小相等
+        2.ViewGroup.LayoutParams代表布局参数
+        MATCH_PARENT:子view希望与父布局一样大，有margin要减去margin的值
+        WRAP_CONTENT:意味着子view只想包裹住自身，如果有padding要加上padding的值
+
+    perfromMeasure()：主要调用的是mView.measure(childWidthMeasureSpec, childHeightMeasureSpec); mView其实就是DecorView 是View的子类  接着进入View的measure方法 最终执行到onMeasure方法中
+    不同的View的onMeasure方法实现不一样 里面主要是从view树下遍历递归测量子view measureChildWithMargins() 内部调用子view的measure方法让它测量自身，最终调用setMeasuredDimension（）设置自身的大小
+    顺序是：先测量子view  最终测量自身
+
+    测量结束之后需要对控件进行布局
+    performLayout()里面主要调用host.layout()方法，其实也就是mView 最终到View类的layout方法中，接着调用onLayout()方法，由各子类去实现
+    其中setFrame()方法真正执行布局任务，改方法确定坐标位置。onLayout是ViewGroup派生类用来布局子view的。它会遍历child，并调用child.layout方法，完成子view的布局工作
+    顺序是：先布局自身，在遍历布局子view
+
+    布局结束之后需要对view进行绘制
+    perfromDraw()：调用drawSoftware()方法，最终调用mView.draw(canvas)，绘制顺序如下
+        1.先绘制背景 drawBackground(canvas)
+        2.绘制内容 onDraw(canvas)
+        3.绘制子类 dispatchDraw(canvas)  会遍历子view drawChild  再调用子view的draw方法绘制子view自身，最终递归绘制整个view树
+        4.绘制滚动条 onDrawForeground(canvas)
+
+
+各方法内部原理：
+invalidate()：(view)invalidateInternal->(viewGrounp)invalidateChild->(viewGrounp)invalidateChildInParent->(在ViewRootImpl)invalidateChildInParent->(在ViewRootImple)invalidateChildInParent()->scheduleTraversals()->doTraversal()->performTraversals()->
+                依次调用perfromMeasure(),performLayout(),performDraw() 因为前面的方法的过滤条件，最终会执行onDraw方法对自身进行重绘
+setSelection() 会更新flag 执行invalidate 从invisible/visible->gone 会执行measure layout draw
+setVisibility() 会更新flag 执行invalidate 从invisible/visible->gone 会执行measure layout draw
+setEnabled() 会更新flag 执行invalidate 从invisible/visible->gone 会执行measure layout draw
+requestLayout()：(view)requestLayout()->(viewGrounp)requestLayout()->(ViewRootImpl)requestLayout() 重新measure layout
+
+
+参考：
+https://www.cnblogs.com/andy-songwei/p/10955062.html
+https://www.jianshu.com/p/5a71014e7b1b
+https://blog.csdn.net/qinjuning/article/details/7110211/

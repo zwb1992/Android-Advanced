@@ -1,0 +1,30 @@
+一：java知识点：
+    1.线程  线程池  锁
+    2.ArrayList HashMap等数据结构  扩容  线程安全
+    3.字节码相关 java->class编译过程
+    4.java虚拟机 垃圾回收机制
+    5.算法
+    6.设计模式
+
+二：网络：
+    1.Http个版本的特性  Https与Http的区别
+    2.网络如何优化
+
+三：android知识点：
+    1.view的绘制流程
+    2.activity的启动流程
+    3.事件分发机制，事件冲突处理
+    4.Handle机制 消息传递
+    5.binder机制
+    6.Dalvik虚拟机与ART虚拟机的区别
+    7.app优化：  内存优化 卡顿优化，启动优化，包体优化
+    8.着重RecyclerView优化及RecyclerView四级缓存实现
+    9.组件化，插件化
+    10.OKHTTP，Retrofit，RxJava
+    11.Leak Canary 原来及流程
+    12.Lrucache实现细节
+    13.Fresco对比Glide等的优势跟区别
+    14.RxJava与Kotlin协程怎么选择
+    15.apk安装流程及各部分意义
+    16.gradle task 跟编译流程优化
+    17.架构 mvp-mvvm的理解
